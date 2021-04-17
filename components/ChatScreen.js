@@ -9,7 +9,7 @@ import MicIcon from '@material-ui/icons/Mic';
 import InsertEmoticonIcon from '@material-ui/icons/InsertEmoticon';
 import {useCollection} from "react-firebase-hooks/firestore";
 import Message from "./Message";
-import {useState} from "react";
+import {useRef, useState} from "react";
 import firebase from 'firebase';
 import getRecipientEmail from "../utils/getRecipientEmail";
 import TimeAgo from "timeago-react";
@@ -17,12 +17,13 @@ import TimeAgo from "timeago-react";
 const ChatScreen = ({ chat, messages }) => {
     const [user] = useAuthState(auth);
     const router = useRouter();
+    const endOfMessageRef = useRef(null);
     const [input, setInput] = useState("");
     const [messagesSnapshot] = useCollection(
         db.collection("chats")
-            .doc(router.query.id.toString())
-            .collection("messages")
-            .orderBy("timestamp", "asc")
+        .doc(router.query.id)
+        .collection("messages")
+        .orderBy("timestamp", "asc")
     );
     const [recipientSnapshot] = useCollection(
         db.collection("users")
@@ -32,17 +33,23 @@ const ChatScreen = ({ chat, messages }) => {
     const recipient = recipientSnapshot?.docs?.[0]?.data();
     const recipientEmail = getRecipientEmail(chat.users, user);
 
+    const scrollToBottom = () => {
+        endOfMessageRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        })
+    }
+
     const showMessages = () => {
-        console.log(messagesSnapshot)
-        if (messagesSnapshot && false) {
+        if (messagesSnapshot) {
             return messagesSnapshot?.docs?.map(message => {
                 return (
                     <Message
                         key={message.id}
                         user={message.data().user}
                         message={{
-                            ...message,
-                            timestamp: message.data().timestamp.toDate().getTime(),
+                            ...message.data(),
+                            timestamp: message.data().timestamp?.toDate().getTime(),
                         }}
                     />
                 )
@@ -77,7 +84,8 @@ const ChatScreen = ({ chat, messages }) => {
             });
 
         setInput("");
-    }
+        scrollToBottom();
+    };
 
     return (
         <Container>
@@ -109,7 +117,7 @@ const ChatScreen = ({ chat, messages }) => {
 
             <MessagesContainer>
                 {showMessages()}
-                <EndOfMessage />
+                <EndOfMessage ref={endOfMessageRef} />
             </MessagesContainer>
 
             <InputContainer>
@@ -162,7 +170,8 @@ const MessagesContainer = styled.div`
   background-color: #efded8;
 `;
 
-const EndOfMessage = styled.div``;
+const EndOfMessage = styled.div`
+`;
 
 const InputContainer = styled.form`
   display: flex;
